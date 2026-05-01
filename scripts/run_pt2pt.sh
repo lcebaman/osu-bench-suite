@@ -17,7 +17,6 @@
 
 #SBATCH --job-name=osu_pt2pt
 #SBATCH --nodes=2
-#SBATCH --ntasks-per-node=1
 #SBATCH --partition=compute
 #SBATCH --time=02:00:00
 #SBATCH --output=/tmp/osu_pt2pt_%j.out
@@ -32,6 +31,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUITE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+if [[ ! -f "${SUITE_DIR}/config.sh" ]]; then
+    SUITE_DIR="$(pwd)"
+fi
 cd "${SUITE_DIR}"
 source "${SUITE_DIR}/config.sh"
 
@@ -111,6 +113,7 @@ run_pt2pt() {
     local cmd="${MPIRUN} -np ${nprocs} ${map_flag} ${extra} ${bench_bin} ${bench_args}"
 
     log "    ${bench_name} | ${nprocs} ranks | 2 nodes"
+    log "      cmd: ${cmd}"
     run_cmd "${cmd} 2>&1 | tee ${outfile}"
 }
 

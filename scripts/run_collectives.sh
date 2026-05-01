@@ -18,7 +18,6 @@
 
 #SBATCH --job-name=osu_collectives
 #SBATCH --nodes=8
-#SBATCH --ntasks-per-node=1
 #SBATCH --partition=compute
 #SBATCH --time=04:00:00
 #SBATCH --output=/tmp/osu_collectives_%j.out
@@ -33,6 +32,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUITE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+if [[ ! -f "${SUITE_DIR}/config.sh" ]]; then
+    SUITE_DIR="$(pwd)"
+fi
 cd "${SUITE_DIR}"
 source "${SUITE_DIR}/config.sh"
 
@@ -130,13 +132,15 @@ run_benchmark() {
     [[ "$bench_name" == "osu_barrier" ]] && bench_args="-i ${ITERATIONS} -x ${WARMUP}"
 
     local extra="${MPI_EXTRA_FLAGS[$label]:-}"
+    local map_flag="--map-by ppr:${RANKS_PER_NODE}:node"
 
-    # --map-by node:PE=RANKS_PER_NODE distributes ranks across nodes evenly.
+    # --map-by ppr:<RANKS_PER_NODE>:node distributes ranks evenly across nodes.
     # -np limits the launch to exactly nodes*RANKS_PER_NODE ranks so we sweep
     # node counts without needing separate allocations.
-    local cmd="${MPIRUN} -np ${nprocs} --map-by node:PE=${RANKS_PER_NODE} ${extra} ${bench_bin} ${bench_args}"
+    local cmd="${MPIRUN} -np ${nprocs} ${map_flag} ${extra} ${bench_bin} ${bench_args}"
 
     log "    ${bench_name} | ${nodes} node(s) | ${nprocs} ranks"
+    log "      cmd: ${cmd}"
     run_cmd "${cmd} 2>&1 | tee ${outfile}"
 }
 

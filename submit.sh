@@ -76,6 +76,7 @@ sbatch_common=(
     "--chdir=${SUITE_DIR}"
     "--output=${RESULTS_DIR}/logs/%x_%j.out"
     "--error=${RESULTS_DIR}/logs/%x_%j.err"
+    "--exclusive"
 )
 [[ -n "$ACCOUNT" ]]    && sbatch_common+=("--account=${ACCOUNT}")
 [[ -n "$CONSTRAINT" ]] && sbatch_common+=("--constraint=${CONSTRAINT}")
@@ -106,14 +107,12 @@ echo ""
 if [[ $RUN_COLLECTIVES -eq 1 ]]; then
     submit "${SUITE_DIR}/scripts/run_collectives.sh" \
         "--nodes=${NODES_COLL}" \
-        "--ntasks-per-node=1" \
         "--time=${TIME_COLL}"
 fi
 
 if [[ $RUN_PT2PT -eq 1 ]]; then
     submit "${SUITE_DIR}/scripts/run_pt2pt.sh" \
         "--nodes=2" \
-        "--ntasks-per-node=1" \
         "--time=${TIME_PT2PT}"
 fi
 
