@@ -1,0 +1,21 @@
+# Build outputs
+osu-builds/
+
+# Runtime results and logs
+results/
+plots/
+
+# Slurm temporary files
+*.tmp
+*.out
+*.err
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Editor
+.vscode/
+*.swp
+*~
