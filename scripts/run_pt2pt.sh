@@ -62,11 +62,17 @@ run_cmd() { if [[ $DRY_RUN -eq 1 ]]; then echo "    [DRY-RUN] $*"; else eval "$*
 
 load_mpi() {
     local label="$1"
+    local module_paths="${MPI_MODULE_PATHS[$label]:-}"
     local modules="${MPI_MODULES[$label]:-}"
     local explicit="${MPI_INSTALLATIONS[$label]:-}"
     if [[ -n "$explicit" ]]; then
         MPIRUN="$explicit"
     else
+        for path in $module_paths; do
+            module use "$path" 2>/dev/null || {
+                log "  ERROR: failed to add module path: $path"; return 1
+            }
+        done
         for mod in $modules; do
             module load "$mod" 2>/dev/null || {
                 log "  ERROR: failed to load module: $mod"; return 1

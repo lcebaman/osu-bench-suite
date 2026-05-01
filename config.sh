@@ -186,7 +186,7 @@ SLURM_CONSTRAINT="${SLURM_CONSTRAINT:-}"
 # Benchmark parameters
 # -----------------------------------------------------------------------------
 MSG_MIN=1
-MSG_MAX=$((1 * 1024 * 1024))   # 1 MiB — increase for bandwidth benchmarks
+MSG_MAX=$((1 * 256 * 256))   # 1 MiB — increase for bandwidth benchmarks
 
 ITERATIONS=1000
 WARMUP=200
