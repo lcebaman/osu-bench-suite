@@ -137,17 +137,17 @@ for label in "${MPI_LABELS[@]}"; do
 
     # Load modules if this is a module-based installation
     modules="${MPI_MODULES[$label]:-}"
+    module_paths="${MPI_MODULE_PATHS[$label]:-}"
     explicit="${MPI_INSTALLATIONS[$label]:-}"
 
     if [[ -n "$modules" ]]; then
+        info "Loading module paths: ${module_paths:-<none>}"
         info "Loading modules: ${modules}"
         if [[ $DRY_RUN -eq 0 ]]; then
-            for mod in $modules; do
-                module load "$mod" 2>/dev/null || {
-                    err "Failed to load module: $mod — skipping ${label}"
-                    continue 2
-                }
-            done
+            load_mpi_modules "$label" || {
+                err "Failed to load modules for ${label} — skipping"
+                continue
+            }
         fi
         mpicc="mpicc"
         mpicxx="mpicxx"
@@ -165,12 +165,16 @@ for label in "${MPI_LABELS[@]}"; do
     info "mpicc  : $(command -v ${mpicc} 2>/dev/null || echo ${mpicc})"
     info "mpicxx : $(command -v ${mpicxx} 2>/dev/null || echo ${mpicxx})"
 
-    # Validate mpicc is available
-    if ! command -v "$mpicc" &>/dev/null && [[ ! -x "$mpicc" ]]; then
-        err "mpicc not found: ${mpicc}"
-        err "Check MPI_MODULES or MPI_INSTALLATIONS in config.sh"
-        [[ -n "$modules" ]] && module unload $modules 2>/dev/null || true
-        continue
+    # Validate mpicc is available (skip this check in dry-run mode)
+    if [[ $DRY_RUN -eq 0 ]]; then
+        if ! command -v "$mpicc" &>/dev/null && [[ ! -x "$mpicc" ]]; then
+            err "mpicc not found: ${mpicc}"
+            err "Check MPI_MODULES or MPI_INSTALLATIONS in config.sh"
+            [[ -n "$modules" ]] && module unload $modules 2>/dev/null || true
+            continue
+        fi
+    else
+        info "DRY-RUN: compiler validation skipped"
     fi
 
     install_prefix="${BUILD_PREFIX}/${label}/osu-micro-benchmarks-${OMB_VERSION}"

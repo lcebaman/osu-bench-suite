@@ -10,7 +10,7 @@
 # If you use build_osu.sh, OSU_INSTALLATIONS is populated automatically
 # (see bottom of this file) and OSU_ROOT is not used.
 # -----------------------------------------------------------------------------
-OSU_ROOT="/home/lcebamanos/test/osu-bench-suite/osu-builds/openmpi-ucx/osu-micro-benchmarks-7.5.1/libexec/osu-micro-benchmarks"
+OSU_ROOT="/home/lcebamanos/test/osu-bench-suite/osu-builds/openmpi-ucc/osu-micro-benchmarks-7.5.1/libexec/osu-micro-benchmarks"
 OSU_COLLECTIVE="${OSU_ROOT}/mpi/collective"
 OSU_PT2PT="${OSU_ROOT}/mpi/pt2pt"
 OSU_ONE_SIDED="${OSU_ROOT}/mpi/one-sided"
@@ -46,8 +46,17 @@ MPI_LABELS=(
 declare -A MPI_MODULES=(
     ["openmpi-ucx"]="amd-compilers aocc/5.1.0 openmpi"
 #    ["openmpi-hcoll"]="OpenMPI/5.0.3-GCC-13.3.0-hcoll"
-#    ["openmpi-ucc"]="OpenMPI/5.0.3-GCC-13.3.0-ucc"
+    ["openmpi-ucc"]="amd-compilers aocc/5.1.0 openmpi/5.0.10/aocc/ucx19_ucc"
 #    ["intelmpi"]="intel-oneapi-mpi/2021.13"
+)
+
+# Optional module search path(s) per label. Use this when MPI modules live in
+# a nonstandard module tree.
+# Space-separated list of module directories is supported.
+declare -A MPI_MODULE_PATHS=(
+    ["openmpi-ucx"]=""
+    ["openmpi-ucc"]="/home/lcebamanos/dev/ompi26/modules"
+    #    ["openmpi-hcoll"]="/other/module/files"
 )
 
 # Explicit mpirun path per label (used only if MPI_MODULES entry is empty)
@@ -83,6 +92,7 @@ declare -A MPI_ENV_VARS=(
 get_mpirun() {
     local label="$1"
     local explicit="${MPI_INSTALLATIONS[$label]:-}"
+    local module_paths="${MPI_MODULE_PATHS[$label]:-}"
     local modules="${MPI_MODULES[$label]:-}"
 
     if [[ -n "$explicit" ]]; then
@@ -91,6 +101,16 @@ get_mpirun() {
     elif [[ -n "$modules" ]]; then
         # Mode A: resolve from PATH after module load
         # This function is called in the current shell so modules are active
+        init_modules || {
+            echo "ERROR: environment modules command not available" >&2
+            return 1
+        }
+        for path in $module_paths; do
+            module use "$path" 2>/dev/null || {
+                echo "ERROR: failed to add module path: $path" >&2
+                return 1
+            }
+        done
         for mod in $modules; do
             module load "$mod" 2>/dev/null || {
                 echo "ERROR: failed to load module: $mod" >&2
@@ -107,16 +127,78 @@ get_mpirun() {
     fi
 }
 
+# Helper: initialize the environment modules subsystem if needed
+init_modules() {
+    if command -v module &>/dev/null; then
+        return 0
+    fi
+
+    if [[ -f /etc/profile.d/modules.sh ]]; then
+        # shellcheck disable=SC1091
+        source /etc/profile.d/modules.sh
+    elif [[ -f /usr/share/Modules/init/bash ]]; then
+        # shellcheck disable=SC1091
+        source /usr/share/Modules/init/bash
+    elif [[ -f /usr/share/modules/init/bash ]]; then
+        # shellcheck disable=SC1091
+        source /usr/share/modules/init/bash
+    fi
+
+    command -v module &>/dev/null
+}
+
+# Helper: load module paths and modules for a given label
+load_mpi_modules() {
+    local label="$1"
+    local module_paths="${MPI_MODULE_PATHS[$label]:-}"
+    local modules="${MPI_MODULES[$label]:-}"
+
+    if [[ -z "$module_paths" && -z "$modules" ]]; then
+        return 0
+    fi
+
+    init_modules || {
+        echo "ERROR: environment modules command not available" >&2
+        return 1
+    }
+
+    for path in $module_paths; do
+        if ! module use "$path" 2>/dev/null; then
+            echo "ERROR: failed to add module path: $path" >&2
+            module avail 2>/dev/null | sed 's/^/    /' >&2 || true
+            return 1
+        fi
+    done
+
+    for mod in $modules; do
+        if ! module load "$mod" 2> >(sed 's/^/    /' >&2); then
+            echo "ERROR: failed to load module: $mod" >&2
+            module avail 2>/dev/null | sed 's/^/    /' >&2 || true
+            return 1
+        fi
+    done
+}
+
 # Helper: emit shell commands that load modules for a label
 # Used in Slurm job scripts where we need to embed module load commands
 get_module_load_cmds() {
     local label="$1"
     local explicit="${MPI_INSTALLATIONS[$label]:-}"
     local modules="${MPI_MODULES[$label]:-}"
+    local module_paths="${MPI_MODULE_PATHS[$label]:-}"
     local env_vars="${MPI_ENV_VARS[$label]:-}"
 
-    if [[ -n "$modules" ]]; then
+    if [[ -n "$module_paths" || -n "$modules" ]]; then
         echo "source \$(pkg config --variable=prefix modules 2>/dev/null)/etc/profile.d/modules.sh 2>/dev/null || true"
+    fi
+
+    if [[ -n "$module_paths" ]]; then
+        for path in $module_paths; do
+            echo "module use ${path}"
+        done
+    fi
+
+    if [[ -n "$modules" ]]; then
         for mod in $modules; do
             echo "module load ${mod}"
         done
@@ -186,7 +268,7 @@ SLURM_CONSTRAINT="${SLURM_CONSTRAINT:-}"
 # Benchmark parameters
 # -----------------------------------------------------------------------------
 MSG_MIN=1
-MSG_MAX=$((1 * 256 * 256))   # 1 MiB — increase for bandwidth benchmarks
+MSG_MAX=$((1 * 1024 * 1024))   # 1 MiB — increase for bandwidth benchmarks
 
 ITERATIONS=1000
 WARMUP=200
@@ -222,7 +304,21 @@ LOG_DIR="${RESULTS_DIR}/logs_${TIMESTAMP}"
 
 
 
-# --- Generated by build_osu.sh on 2026-05-01 11:09 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# --- Generated by build_osu.sh on 2026-05-01 16:44 ---
 declare -A OSU_INSTALLATIONS=(
-    ["openmpi-ucx"]="/home/lcebamanos/test/osu-bench-suite/osu-builds/openmpi-ucx/osu-micro-benchmarks-7.5.1/libexec/osu-micro-benchmarks"
+    ["openmpi-ucc"]="/home/lcebamanos/test/osu-bench-suite/osu-builds/openmpi-ucc/osu-micro-benchmarks-7.5.1/libexec/osu-micro-benchmarks"
 )

@@ -68,6 +68,9 @@ load_mpi() {
     if [[ -n "$explicit" ]]; then
         MPIRUN="$explicit"
     else
+        init_modules || {
+            log "  ERROR: environment modules command not available"; return 1
+        }
         for path in $module_paths; do
             module use "$path" 2>/dev/null || {
                 log "  ERROR: failed to add module path: $path"; return 1
