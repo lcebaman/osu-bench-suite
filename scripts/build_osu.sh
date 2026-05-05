@@ -144,6 +144,8 @@ for label in "${MPI_LABELS[@]}"; do
         info "Loading module paths: ${module_paths:-<none>}"
         info "Loading modules: ${modules}"
         if [[ $DRY_RUN -eq 0 ]]; then
+            # Purge existing modules to avoid conflicts
+            module purge 2>/dev/null || true
             load_mpi_modules "$label" || {
                 err "Failed to load modules for ${label} — skipping"
                 continue
